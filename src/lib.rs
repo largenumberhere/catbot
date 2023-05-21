@@ -35,7 +35,7 @@ mod cat_name_tests{
         let source_bytes_vec:Vec<u8> = (0..100).into_iter().collect();
 
         let mut results = Vec::with_capacity(100);
-        for i in 0..100 {
+        for _i in 0..100 {
             let hash = {
                 let mut hasher = Blake2b512::default();
                 hasher.write(source_bytes_vec.as_slice()).unwrap();
