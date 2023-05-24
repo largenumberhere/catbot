@@ -7,6 +7,7 @@ mod cat_name_tests{
     use blake2::digest::FixedOutput;
 
 
+
     //hash tests
     #[test]
     pub fn hash_of_sequentual_writes_equals_full_write(){
@@ -71,4 +72,8 @@ mod cat_name_tests{
     }
 
 
+
+
+
 }
+
