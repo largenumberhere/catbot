@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use poise::{self, serenity_prelude};
 use strum::EnumIter;
 use strum::IntoEnumIterator;
@@ -9,6 +11,11 @@ type Context<'a> = poise::Context<'a, Data, AsyncError>;
 
 #[tokio::main]
 async fn main() {
+    let token_loader = TokenLoader::new();
+    let discord_token = token_loader.get_unwrap(&AppToken::DiscordToken);
+    assert_eq!(discord_token, "I am a discord token with a trailing space and newline");
+
+
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: {
@@ -50,50 +57,81 @@ async fn age(
 }
 
 
-#[derive(Debug, EnumIter, PartialEq, Clone)]
+#[derive(Debug, EnumIter, PartialEq, Clone, Eq, Hash)]
 enum AppToken {
     DiscordToken
 }
+
 impl AppToken {
-    fn get_path(token_type :AppToken) -> String {
+    fn get_path(token_type :&AppToken) -> String {
         match token_type {
             AppToken::DiscordToken => {
-                String::from("discord.file")
+                String::from("./.keys/discord.file")
             }
         }
     }
 
-    fn get_name(token_type :AppToken) -> String{
+    fn get_name(token_type :&AppToken) -> String{
         match token_type {
-            AppToken::DiscordToken => String::from("discord bot token"),
+            AppToken::DiscordToken => String::from("Discord bot token"),
         }
     }
 }
 
 struct TokenLoader{
-    tokens: Vec<AppToken>
+    tokens: HashMap<AppToken, String>
 }
 
-impl AppToken {
+impl TokenLoader {
     fn new()-> TokenLoader {
-        for token in AppToken::iter(){
-            let path = AppToken::get_path(token.clone());
-            let string = std::fs::read_to_string(&path);
-            let string = if let Ok(string) = string {
-                string.trim().to_owned()
-            } else{
-                panic!("Failed to find expected token for '{}' at path '{}'", AppToken::get_name(token), &path);
-            };
+        let tokens = {
+            let mut tokens = 
+            Vec::new();
+            for token in AppToken::iter(){
+                let path = AppToken::get_path(&token);
+                let string = std::fs::read_to_string(&path);
+                let string = if let Ok(string) = string {
+                    let s = string.trim().to_owned();
+                    println!("Loaded token '{}'", AppToken::get_name(&token));
+                    s
+                
+                } else{
+                    let error = string.err();
 
+                    panic!("Failed to find expected token for '{}' at path '{}' because of error: '{:#?}'", AppToken::get_name(&token), &path, error);
+                };
 
-
-        }
+                tokens.push((token ,string))
+            }
+            tokens
+        };
 
         TokenLoader{
-            
+            tokens:{
+                let mut map = HashMap::with_capacity(tokens.len());
+                for (key ,token) in tokens.into_iter(){
+                    map.insert(key,token);
+                };
 
-            tokens: vec![]
-        
+                map
+            }
+        }
+    }
+
+    fn get(&self, token :&AppToken) -> Option<String>{
+        match self.tokens.get(&token) {
+            Some(v) => Some(v.to_string()),
+            None => None
+        }
+    }
+
+    fn get_unwrap(&self, token :&AppToken) -> String{
+        let value = self.get(&token);
+        match value {
+            Some(v) => v,
+            None =>{
+                panic!("No token key found for token key'{:#?}'", token)
+            }
         }
     }
 
