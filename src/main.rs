@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::io::{Error, ErrorKind};
+use std::path::Path;
 
 use poise::{self, serenity_prelude};
+use poise::futures_util::future::err;
 use strum::EnumIter;
 use strum::IntoEnumIterator;
 struct Data {}//User data
@@ -82,6 +85,83 @@ struct TokenLoader{
     tokens: HashMap<AppToken, String>
 }
 
+/// Describe each variant of an enum very briefly.
+trait EnumDescription{
+    fn enum_description(&self) -> String;
+}
+
+impl EnumDescription for ErrorKind {
+    fn enum_description(&self) -> String {
+        match self {
+            ErrorKind::NotFound => {
+                "not found"
+            }
+            ErrorKind::PermissionDenied => {
+                "permission denied"
+            }
+            ErrorKind::NotConnected => {
+                "not connected to network"
+            }
+            ErrorKind::InvalidInput => {
+                "invalid input"
+            }
+            ErrorKind::InvalidData => {
+                "invalid data"
+            }
+            ErrorKind::TimedOut => {
+                "timed out"
+            }
+            ErrorKind::Interrupted => {
+                "interrupted"
+            }
+            ErrorKind::Unsupported => {
+                "unsupported on this platform"
+            }
+            ErrorKind::UnexpectedEof => {
+                "unexpected end of file"
+            }
+            ErrorKind::OutOfMemory => {
+                "out of memory"
+            }
+            ErrorKind::ConnectionRefused => {
+                "network connection refused"
+            }
+            ErrorKind::ConnectionReset => {
+                "network connection reset"
+            }
+            ErrorKind::ConnectionAborted => {
+                "network connection aborted"
+            }
+            ErrorKind::AddrInUse => {
+                "network address already in use"
+            }
+            ErrorKind::AddrNotAvailable => {
+                "network address not available"
+            }
+            ErrorKind::BrokenPipe => {
+                "network pipe was broken"
+            }
+            ErrorKind::AlreadyExists => {
+                "resource already exists"
+            }
+            ErrorKind::WouldBlock => {
+                "operation requested to not block but would"
+            }
+            ErrorKind::WriteZero => {
+                "nothing written"
+            }
+            ErrorKind::Other => {
+                "other"
+            }
+            _=>{
+                "unspecified"
+            }
+
+        }.to_string()
+    }
+}
+
+
 impl TokenLoader {
     fn new()-> TokenLoader {
         let tokens = {
@@ -95,10 +175,34 @@ impl TokenLoader {
                     println!("Loaded token '{}'", AppToken::get_name(&token));
                     s
                 
-                } else{
-                    let error = string.err();
+                }
+                else{
+                    let error = string.err().unwrap();
 
-                    panic!("Failed to find expected token for '{}' at path '{}' because of error: '{:#?}'", AppToken::get_name(&token), &path, error);
+                     let path_message: String  = 'path: {
+                        let path_struct = Path::new(&path);
+
+                        {
+                            let cannon = path_struct.canonicalize();
+                            if let Ok(c) = cannon {
+                                break 'path format!("valid path at '{:#?}'", c);
+                            }
+                        }
+
+                        {
+                            let parent = path_struct.parent();
+                            if let Some(p) = parent {
+                                break 'path format!("invalid target inside of valid directory '{:#?}'", p);
+                            }
+                        }
+
+                         break 'path format!("invalid path given as {}", &path);
+                    };
+
+                    let error_description = error.kind().enum_description();
+
+
+                    panic!("Failed because of reason '{}'. token name '{}', token path '{}'.\nRaw error: {:#?}. Path description: {}", error_description, AppToken::get_name(&token), &path , error, path_message);
                 };
 
                 tokens.push((token ,string))
