@@ -6,30 +6,61 @@ use poise::{self, serenity_prelude};
 use poise::futures_util::future::err;
 use strum::EnumIter;
 use strum::IntoEnumIterator;
+
+use token_loader::TokenLoader;
+use crate::project_tokens::ProjectToken;
+
 struct Data {}//User data
 
+mod token_loader;
+mod project_tokens;
+
+mod tests;
 //Stupid error types copied from https://github.com/serenity-rs/poise/blob/current/examples/quickstart/main.rs
 type AsyncError = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, AsyncError>;
 
-#[tokio::main]
-async fn main() {
-    let token_loader = TokenLoader::new();
-    let discord_token = token_loader.get_unwrap(&AppToken::DiscordToken);
-    assert_eq!(discord_token, "I am a discord token with a trailing space and newline");
+struct ProgramState{
+    token_loader: TokenLoader<ProjectToken>
+}
 
+impl Default for ProgramState{
+    fn default() -> Self {
+        ProgramState{
+            token_loader: TokenLoader::new()
+        }
+    }
+}
+
+
+///Bot pre-setup. May panic
+fn main(){
+    let program_state = ProgramState::default();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all().build().unwrap();
+    runtime.block_on(main_async(program_state))
+
+}
+
+
+//#[tokio::main]
+async fn main_async(program_state: ProgramState) {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: {
-                vec![age()]
 
-            
+                vec![
+                    #[allow(invalid_type_param_default)]
+                        age()
+                ]
             },
+
+
 
             ..Default::default()
         })
-        .token("token goes here")
+        .token(program_state.token_loader.get_unwrap(&ProjectToken::DiscordToken))
         .intents(serenity_prelude::GatewayIntents::non_privileged())
         .setup(|context, ready, framework|{
             Box::pin(async move {
@@ -38,8 +69,14 @@ async fn main() {
             })
         });
 
-    
 
+
+    match framework.run().await{
+        Ok(o) => {}
+        Err(e) => {
+            panic!("fatal error occurred: {:#?}", e)
+        }
+    }
 
 
 }
@@ -56,190 +93,19 @@ async fn age(
     let u = user.as_ref().unwrap_or_else(|| ctx.author());
     let response = format!("{}'s account was created at {}", u.name, u.created_at());
     ctx.say(response).await?;
+    //panic!("hi");
     Ok(())
 }
 
 
-#[derive(Debug, EnumIter, PartialEq, Clone, Eq, Hash)]
-enum AppToken {
-    DiscordToken
-}
-
-impl AppToken {
-    fn get_path(token_type :&AppToken) -> String {
-        match token_type {
-            AppToken::DiscordToken => {
-                String::from("./.keys/discord.file")
-            }
-        }
-    }
-
-    fn get_name(token_type :&AppToken) -> String{
-        match token_type {
-            AppToken::DiscordToken => String::from("Discord bot token"),
-        }
-    }
-}
-
-struct TokenLoader{
-    tokens: HashMap<AppToken, String>
-}
-
-/// Describe each variant of an enum very briefly.
-trait EnumDescription{
-    fn enum_description(&self) -> String;
-}
-
-impl EnumDescription for ErrorKind {
-    fn enum_description(&self) -> String {
-        match self {
-            ErrorKind::NotFound => {
-                "not found"
-            }
-            ErrorKind::PermissionDenied => {
-                "permission denied"
-            }
-            ErrorKind::NotConnected => {
-                "not connected to network"
-            }
-            ErrorKind::InvalidInput => {
-                "invalid input"
-            }
-            ErrorKind::InvalidData => {
-                "invalid data"
-            }
-            ErrorKind::TimedOut => {
-                "timed out"
-            }
-            ErrorKind::Interrupted => {
-                "interrupted"
-            }
-            ErrorKind::Unsupported => {
-                "unsupported on this platform"
-            }
-            ErrorKind::UnexpectedEof => {
-                "unexpected end of file"
-            }
-            ErrorKind::OutOfMemory => {
-                "out of memory"
-            }
-            ErrorKind::ConnectionRefused => {
-                "network connection refused"
-            }
-            ErrorKind::ConnectionReset => {
-                "network connection reset"
-            }
-            ErrorKind::ConnectionAborted => {
-                "network connection aborted"
-            }
-            ErrorKind::AddrInUse => {
-                "network address already in use"
-            }
-            ErrorKind::AddrNotAvailable => {
-                "network address not available"
-            }
-            ErrorKind::BrokenPipe => {
-                "network pipe was broken"
-            }
-            ErrorKind::AlreadyExists => {
-                "resource already exists"
-            }
-            ErrorKind::WouldBlock => {
-                "operation requested to not block but would"
-            }
-            ErrorKind::WriteZero => {
-                "nothing written"
-            }
-            ErrorKind::Other => {
-                "other"
-            }
-            _=>{
-                "unspecified"
-            }
-
-        }.to_string()
-    }
-}
 
 
-impl TokenLoader {
-    fn new()-> TokenLoader {
-        let tokens = {
-            let mut tokens = 
-            Vec::new();
-            for token in AppToken::iter(){
-                let path = AppToken::get_path(&token);
-                let string = std::fs::read_to_string(&path);
-                let string = if let Ok(string) = string {
-                    let s = string.trim().to_owned();
-                    println!("Loaded token '{}'", AppToken::get_name(&token));
-                    s
-                
-                }
-                else{
-                    let error = string.err().unwrap();
-
-                     let path_message: String  = 'path: {
-                        let path_struct = Path::new(&path);
-
-                        {
-                            let cannon = path_struct.canonicalize();
-                            if let Ok(c) = cannon {
-                                break 'path format!("valid path at '{:#?}'", c);
-                            }
-                        }
-
-                        {
-                            let parent = path_struct.parent();
-                            if let Some(p) = parent {
-                                break 'path format!("invalid target inside of valid directory '{:#?}'", p);
-                            }
-                        }
-
-                         break 'path format!("invalid path given as {}", &path);
-                    };
-
-                    let error_description = error.kind().enum_description();
 
 
-                    panic!("Failed because of reason '{}'. token name '{}', token path '{}'.\nRaw error: {:#?}. Path description: {}", error_description, AppToken::get_name(&token), &path , error, path_message);
-                };
 
-                tokens.push((token ,string))
-            }
-            tokens
-        };
 
-        TokenLoader{
-            tokens:{
-                let mut map = HashMap::with_capacity(tokens.len());
-                for (key ,token) in tokens.into_iter(){
-                    map.insert(key,token);
-                };
 
-                map
-            }
-        }
-    }
 
-    fn get(&self, token :&AppToken) -> Option<String>{
-        match self.tokens.get(&token) {
-            Some(v) => Some(v.to_string()),
-            None => None
-        }
-    }
-
-    fn get_unwrap(&self, token :&AppToken) -> String{
-        let value = self.get(&token);
-        match value {
-            Some(v) => v,
-            None =>{
-                panic!("No token key found for token key'{:#?}'", token)
-            }
-        }
-    }
-
-}
 
 
 // trait IntoResult<T,E>{
