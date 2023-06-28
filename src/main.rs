@@ -1,88 +1,72 @@
-use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
-use std::path::Path;
-
-use poise::{self, serenity_prelude};
-use poise::futures_util::future::err;
-use strum::EnumIter;
-use strum::IntoEnumIterator;
-
-use token_loader::TokenLoader;
 use crate::project_tokens::ProjectToken;
+use poise::{self, serenity_prelude};
+use token_loader::TokenLoader;
 
-struct Data {}//User data
+struct Data {} //User data
 
-mod token_loader;
 mod project_tokens;
+mod token_loader;
 
 mod tests;
 //Stupid error types copied from https://github.com/serenity-rs/poise/blob/current/examples/quickstart/main.rs
 type AsyncError = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, AsyncError>;
 
-struct ProgramState{
-    token_loader: TokenLoader<ProjectToken>
+struct ProgramState {
+    token_loader: TokenLoader<ProjectToken>,
 }
 
-impl Default for ProgramState{
+impl Default for ProgramState {
     fn default() -> Self {
-        ProgramState{
-            token_loader: TokenLoader::new()
+        ProgramState {
+            token_loader: TokenLoader::new(),
         }
     }
 }
 
-
 ///Bot pre-setup. May panic
-fn main(){
+fn main() {
     let program_state = ProgramState::default();
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all().build().unwrap();
+        .enable_all()
+        .build()
+        .unwrap();
     runtime.block_on(main_async(program_state))
-
 }
-
 
 //#[tokio::main]
 async fn main_async(program_state: ProgramState) {
+    let commands = vec![age()];
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: {
-
-                vec![
-                    #[allow(invalid_type_param_default)]
-                        age()
-                ]
-            },
-
-
-
+            commands,
             ..Default::default()
         })
-        .token(program_state.token_loader.get_unwrap(&ProjectToken::DiscordToken))
+        .token(
+            program_state
+                .token_loader
+                .get_unwrap(&ProjectToken::DiscordToken),
+        )
         .intents(serenity_prelude::GatewayIntents::non_privileged())
-        .setup(|context, ready, framework|{
+        .setup(move |context, ready, framework| {
+            println!("Connected as '{}'", ready.user.name);
+
             Box::pin(async move {
                 poise::builtins::register_globally(context, &framework.options().commands).await?;
                 Ok(Data {})
             })
         });
 
-
-
-    match framework.run().await{
-        Ok(o) => {}
+    match framework.run().await {
+        Ok(_) => {
+            println!("Framework exited with success");
+        }
         Err(e) => {
-            panic!("fatal error occurred: {:#?}", e)
+            panic!("Fatal error occurred with framework: {:#?}", e)
         }
     }
-
-
 }
-
-
-
 
 /// Displays your or another user's account creation date
 #[poise::command(slash_command, prefix_command)]
@@ -96,17 +80,6 @@ async fn age(
     //panic!("hi");
     Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-
 
 // trait IntoResult<T,E>{
 //     fn into_result(self, e: E) -> Result<T, E>;
@@ -179,19 +152,11 @@ async fn age(
 //     }
 // }
 
-
-
 // static CATS_TO_VOTE_FOR: once_cell::sync::Lazy<HashSet<String>> = once_cell::sync::Lazy::new(||{
 //     let file_content = include_str!("cats.json");
 //     let cats:HashSet<String> = serde_json::de::from_str(file_content).expect("failed to parse file");
 //     cats
 // });
-
-
-
-
-
-
 
 // async fn cat_bot(){
 
@@ -225,8 +190,6 @@ async fn age(
 //                     else {
 //                         Ok(format!("You voted for {}!",option1))
 //                     }
-
-
 
 //                 };
 
@@ -267,7 +230,6 @@ async fn age(
 
 //         }
 //     ];
-
 
 //     let token = load_discord_token().unwrap();
 
@@ -311,16 +273,9 @@ async fn age(
 //     required: bool
 // }
 
-
-
-
 // struct CatBotCommandHandler{
 //     commands: Vec<BotCommand>
 // }
-
-
-
-
 
 // #[async_trait]
 // impl EventHandler for CatBotCommandHandler {
@@ -339,8 +294,6 @@ async fn age(
 //                 None
 //             }
 //         };
-
-
 
 //         for new_command in self.commands.clone().into_iter(){
 //             // match &old_commands {
@@ -396,8 +349,6 @@ async fn age(
 //             //     None=>{}
 //             // }
 
-
-
 //             let command_result;
 //             command_result = Command::create_global_application_command(&context.http, |command_builder|{
 //                 command_builder
@@ -437,8 +388,6 @@ async fn age(
 
 //             println!("interaction recevied from {name}:{descriminator}");
 
-
-
 //             let command_name_requested = command.data.name.as_str();
 //             let bot_command = self.commands.iter().find(|c| c.name.as_str() == command_name_requested);
 //             let bot_command = match bot_command {
@@ -458,7 +407,6 @@ async fn age(
 //             };
 
 //             let response = (bot_command.reply_fn)(&command);
-
 
 //             match response {
 //                 Ok(v)=>{
@@ -499,6 +447,3 @@ async fn age(
 //         }
 //     }
 // }
-
-
-
